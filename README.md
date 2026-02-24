@@ -3,7 +3,7 @@
 This project is a work in progress and under active development.
 It has not been extensively tested yet.
 Use at your own risk and test in a VM before deploying on real hardware.
-Personal Arch Linux installation setup — LUKS2 full-disk encryption, Btrfs with automatic snapshots, post-LUKS snapshot menu, hibernate via encrypted swapfile, systemd-boot + Unified Kernel Image, optional SecureBoot.
+Personal Arch Linux installation setup - LUKS2 full-disk encryption, Btrfs with automatic snapshots, post-LUKS snapshot menu, hibernate via encrypted swapfile, systemd-boot + Unified Kernel Image, optional SecureBoot.
 
 Based on [secure-arch](https://github.com/Ataraxxia/secure-arch) by Ataraxxia.
 
@@ -32,10 +32,10 @@ UEFI → systemd-boot → LUKS passphrase
           [s]      →  pick a Snapper snapshot → rollback boot
 ```
 
-- Full LUKS2 disk encryption (Argon2id KDF — no GRUB compromise)
+- Full LUKS2 disk encryption (Argon2id KDF - no GRUB compromise)
 - Btrfs with `zstd` compression + automatic pre/post snapshots on every `pacman` operation
 - Snapshot selection menu in the initramfs, after LUKS unlock, before root mount
-- Hibernate to encrypted swapfile — RAM state survives power-off, restored after next LUKS unlock
+- Hibernate to encrypted swapfile - RAM state survives power-off, restored after next LUKS unlock
 - Optional autologin (disk still encrypted; only skips user password after LUKS)
 - Optional SecureBoot with your own keys (sbctl)
 - Auto-detected GPU driver (AMD / Intel / Nvidia / hybrid)
@@ -85,7 +85,7 @@ The TUI prompts:
 | Step | Notes |
 |------|-------|
 | Target disk | Selected from auto-detected `lsblk` list |
-| CPU vendor | AMD / Intel — determines microcode package |
+| CPU vendor | AMD / Intel - determines microcode package |
 | Username + hostname | Free text |
 | Timezone | Two-step region → city selector, or type manually |
 | Locale | Common locales + manual entry |
@@ -94,7 +94,7 @@ The TUI prompts:
 | Swap + hibernate | Detects RAM size, recommends matching swap size |
 | Autologin | Skips user password after LUKS unlock on boot |
 | SecureBoot | sbctl setup, with or without Microsoft CA |
-| GPU | Auto-detected via `lspci` — confirm or override |
+| GPU | Auto-detected via `lspci` - confirm or override |
 | Packages | Per-category checklists, all pre-selected, deselect freely |
 
 After confirming the summary the script is fully automated: partition → LUKS → Btrfs subvolumes → swapfile → pacstrap → chroot config → snapshot menu module → dracut UKI → systemd-boot → done.
@@ -136,7 +136,7 @@ sudo systemctl restart NetworkManager
 
 ---
 
-## What the script sets up — and why
+## What the script sets up - and why
 
 ### Disk layout
 
@@ -152,32 +152,32 @@ sudo systemctl restart NetworkManager
               └── @swap       →  /swap  (nodatacow, optional)
 ```
 
-**Why LUKS2 with Argon2id?** Argon2id is memory-hard — brute-forcing the passphrase requires significant RAM, making offline attacks much slower than with PBKDF2. GRUB cannot use Argon2id because it must decrypt the disk before the OS is loaded. systemd-boot avoids this entirely — it just launches the UKI, and LUKS is unlocked by the initramfs using full Argon2id.
+**Why LUKS2 with Argon2id?** Argon2id is memory-hard - brute-forcing the passphrase requires significant RAM, making offline attacks much slower than with PBKDF2. GRUB cannot use Argon2id because it must decrypt the disk before the OS is loaded. systemd-boot avoids this entirely - it just launches the UKI, and LUKS is unlocked by the initramfs using full Argon2id.
 
-**Why Btrfs instead of ext4 + LVM?** Btrfs subvolumes replace LVM logical volumes with no added complexity. You gain CoW snapshots, transparent `zstd` compression (typically 20–40% space saving), and data checksums — none of which ext4 offers.
+**Why Btrfs instead of ext4 + LVM?** Btrfs subvolumes replace LVM logical volumes with no added complexity. You gain CoW snapshots, `zstd` compression, and data checksums - none of which ext4 offers. Though it should be remarked that zstd brings some cpu overhead, so it isn't really recommendet on old CPUs.
 
 **Why these subvolumes?**
 
-- `@home` — personal data survives system rollbacks. Rolling back a broken update won't undo your files.
-- `@snapshots` — must be separate so Snapper snapshots don't include themselves recursively.
-- `@var_log` — logs shouldn't roll back. You want the logs that show *why* something broke.
-- `@swap` — CoW must be disabled here. Btrfs CoW makes file offsets non-contiguous, which breaks the kernel's `resume_offset` calculation for hibernate.
+- `@home` : personal data survives system rollbacks. Rolling back a broken update won't undo your files.
+- `@snapshots` : separate so Snapper snapshots don't include themselves recursively.
+- `@var_log` : logs shouldn't roll back. You want the logs that show *why* something broke.
+- `@swap` : CoW must be disabled here. Btrfs CoW makes file offsets non-contiguous, which breaks the kernel's `resume_offset` calculation for hibernate.
 
 ### Hibernate via encrypted swapfile
 
-The swapfile lives inside the LUKS volume — it is fully encrypted. `HibernateMode=shutdown` in `systemd-sleep.conf.d` means hibernate powers the machine fully off. On next boot: systemd-boot launches the UKI → LUKS passphrase → kernel reads hibernate image from swapfile (using `resume=` and `resume_offset=` from the kernel command line) → session restored.
+The swapfile lives inside the LUKS volume - it is fully encrypted. `HibernateMode=shutdown` in `systemd-sleep.conf.d` means hibernate powers the machine fully off. On next boot: systemd-boot launches the UKI → LUKS passphrase → kernel reads hibernate image from swapfile (using `resume=` and `resume_offset=` from the kernel command line) → session restored.
 
-`AllowSuspend=no` ensures the system always hibernates, never suspends to RAM — so closing the lid or running `systemctl hibernate` always writes to disk.
+`AllowSuspend=no` ensures the system always hibernates, never suspends to RAM - so closing the lid or running `systemctl hibernate` always writes to disk.
 
 ### Post-LUKS snapshot menu
 
 The snapshot menu is a custom dracut module bundled into the UKI. It runs in the initramfs after LUKS is unlocked but before root is mounted. It reads Snapper's `info.xml` files directly from the Btrfs volume and presents a numbered list. Selecting a snapshot mounts `@snapshots/N/snapshot` as root instead of `@`.
 
-The 5-second timeout defaults to normal boot — you only see the full list if you press `s`. On the first boot there are no snapshots yet, so the menu is skipped entirely and the system boots straight through.
+The 5-second timeout defaults to normal boot - you only see the full list if you press `s`. On the first boot there are no snapshots yet, so the menu is skipped entirely and the system boots straight through.
 
 ### systemd-boot
 
-systemd-boot is a minimal EFI boot manager — it reads the `entries/` directory and launches the matching EFI binary. `timeout 0` makes it instant and invisible. The snapshot selection happens after LUKS unlock inside the UKI, not in the bootloader. Hold `Space` at power-on to access the systemd-boot menu manually (useful for booting a USB stick without changing BIOS settings).
+systemd-boot is a minimal EFI boot manager - it reads the `entries/` directory and launches the matching EFI binary. `timeout 0` makes it instant and invisible. The snapshot selection happens after LUKS unlock inside the UKI, not in the bootloader. Hold `Space` at power-on to access the systemd-boot menu manually (useful for booting a USB stick without changing BIOS settings).
 
 ### Snapper + snap-pac
 
@@ -213,11 +213,11 @@ env = AQ_DRM_DEVICES,/dev/dri/card1
 
 ### SecureBoot with sbctl
 
-sbctl generates Platform Key, Key Exchange Key, and Database Key. Your UKI is signed with the Database Key. dracut is configured to re-sign the UKI automatically on every rebuild. A pacman hook re-signs after kernel updates. Key enrollment happens after first boot via BIOS Setup Mode — the script sets everything up but cannot enroll keys without physical BIOS access.
+sbctl generates Platform Key, Key Exchange Key, and Database Key. Your UKI is signed with the Database Key. dracut is configured to re-sign the UKI automatically on every rebuild. A pacman hook re-signs after kernel updates. Key enrollment happens after first boot via BIOS Setup Mode - the script sets everything up but cannot enroll keys without physical BIOS access.
 
 ### Autologin
 
-Configured via a systemd drop-in for `getty@tty1.service`. The disk is still fully encrypted — autologin only skips the Linux user password prompt after LUKS is unlocked. Practical for a home desktop; optional on a laptop that travels.
+Configured via a systemd drop-in for `getty@tty1.service`. The disk is still fully encrypted - autologin only skips the Linux user password prompt after LUKS is unlocked. Practical for a home desktop; optional on a laptop that travels.
 
 ---
 
@@ -248,4 +248,4 @@ reboot
 snapper -c root rollback
 ```
 
-Automatic pre/post snapshots from `snap-pac` appear in the boot menu on the next startup — no manual action needed for day-to-day use.
+Automatic pre/post snapshots from `snap-pac` appear in the boot menu on the next startup - no manual action needed for day-to-day use.
