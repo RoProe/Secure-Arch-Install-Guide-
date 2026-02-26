@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 # Arch Linux installer — LUKS2 + Btrfs + Dracut UKI + systemd-boot + SecureBoot
-# Based on: https://github.com/Ataraxxia/secure-arch (Btrfs adaptation with snapshots and custom snapshot menu after luks decryption and swap on LUKS partition for secure hibernate.)
+# inspired by: https://github.com/Ataraxxia/secure-arch (Btrfs adaptation with snapshots and custom snapshot menu after luks decryption and swap on LUKS partition for secure hibernate.)
 #
 # Boot flow:
 #   UEFI → systemd-boot (instant) → UKI → LUKS passphrase
