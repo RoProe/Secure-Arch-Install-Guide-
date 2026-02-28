@@ -203,16 +203,47 @@ for f in module-setup.sh snapshot-menu.sh apply-rootflags.sh; do
 done
 success "Snapshot menu module installed."
 
+
+# ── SecureBoot (optional) ─────────────────────────────────────────────────────
+if [[ "${ENABLE_SECUREBOOT}" == "true" ]]; then
+  pacman -S --noconfirm sbctl
+  sbctl create-keys
+
+  cat > /etc/dracut.conf.d/secureboot.conf << 'EOF'
+uefi_secureboot_cert="/var/lib/sbctl/keys/db/db.pem"
+uefi_secureboot_key="/var/lib/sbctl/keys/db/db.key"
+EOF
+
+  cat > /etc/pacman.d/hooks/zz-sbctl.hook << 'EOF'
+[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Target = boot/*
+Target = efi/*
+Target = usr/lib/modules/*/vmlinuz
+Target = usr/lib/initcpio/*
+Target = usr/lib/**/efi/*.efi*
+
+[Action]
+Description = Signing EFI binaries...
+When = PostTransaction
+Exec = /usr/bin/sbctl sign /boot/efi/EFI/Linux/bootx64.efi
+EOF
+fi
+
+
+
 # ── generate UKI (triggers dracut hook) ───────────────────────────────────────
 # This reinstalls the linux package which fires 90-dracut-install.hook,
 # which calls dracut-install.sh, which runs dracut --uefi to produce bootx64.efi
 pacman -S --noconfirm linux
 
 # Initial sign — must happen after UKI exists, before reboot
-$(if $ENABLE_SECUREBOOT; then cat << 'SBSIGNEOF'
-sbctl sign -s /boot/efi/EFI/Linux/bootx64.efi
-SBSIGNEOF
-fi)
+if [[ "$ENABLE_SECUREBOOT" == "true" ]] ; then
+  sbctl sign -s /boot/efi/EFI/Linux/bootx64.efi
+fi
 
 # ── systemd-boot ──────────────────────────────────────────────────────────────
 # systemd-boot is a minimal EFI boot manager — it just launches the UKI.
@@ -237,46 +268,16 @@ EOF
 
 success "systemd-boot installed."
 
-# ── post-install script for after first boot ──────────────────────────────────
-cat > /home/${USERNAME}/post-install.sh << 'POSTEOF'
-#!/usr/bin/env bash
-# Run this after first boot as your regular user (not root).
-# Installs yay, AUR packages, sets zsh as default shell.
-set -euo pipefail
-
-GREEN='\033[0;32m'; CYAN='\033[0;36m'; NC='\033[0m'
-info()    { echo -e "\${CYAN}[INFO]\${NC} \$*"; }
-success() { echo -e "\${GREEN}[OK]\${NC}   \$*"; }
-
-info "Installing yay..."
-cd /tmp
-git clone https://aur.archlinux.org/yay.git
-cd yay && makepkg -si --noconfirm
-cd ~
-
-AUR_LIST="$HOME/aur-packages.txt"
-if [[ -f "\$AUR_LIST" && -s "\$AUR_LIST" ]]; then
-    mapfile -t AUR_PKGS < "\$AUR_LIST"
-    info "Installing AUR packages: \${AUR_PKGS[*]}"
-    yay -S --noconfirm "\${AUR_PKGS[@]}"
-fi
-
-info "Setting zsh as default shell..."
-chsh -s /bin/zsh
-
-success "Post-install complete!"
-echo ""
-echo "Next steps:"
-echo "  1. Restore dotfiles:   cd ~/dotfiles && stow *"
-echo "  2. Restore NM VPN configs from Borg backup:"
-echo "       sudo cp /path/*.nmconnection /etc/NetworkManager/system-connections/"
-echo "       sudo chmod 600 /etc/NetworkManager/system-connections/*"
-echo "       sudo systemctl restart NetworkManager"
-POSTEOF
+# ── aur packages list ─────────────────────────────────────────────────────────
+echo "${PKGS_AUR}" | tr ' ' '\n' | grep -v '^$' > /home/${USERNAME}/aur-packages.txt
+chown ${USERNAME}:${USERNAME} /home/${USERNAME}/aur-packages.txt
+# ── fetch post-install script ─────────────────────────────────────────────────
+curl -fsSL "${REPO_RAW}/post-install.sh" -o /home/${USERNAME}/post-install.sh
 chown ${USERNAME}:${USERNAME} /home/${USERNAME}/post-install.sh
 chmod +x /home/${USERNAME}/post-install.sh
 success "post-install.sh written to /home/${USERNAME}/"
 
+# ──── summary ─────────────────────────────────────────────────────────────────
 echo ""
 echo "╔══════════════════════════════════════════════════════════╗"
 echo "║  Chroot setup complete!                                  ║"
@@ -285,14 +286,18 @@ echo "║  Exit chroot and run:                                    ║"
 echo "║    umount -R /mnt                                        ║"
 echo "║    cryptsetup close ${LUKS_NAME}                        ║"
 echo "║    reboot                                                ║"
-$(if $ENABLE_SECUREBOOT; then
-  echo "echo '╠══════════════════════════════════════════════════════════╣'"
-  echo "echo '║  After first boot — SecureBoot:                          ║'"
-  echo "echo '║    1. Enable Setup Mode in BIOS                          ║'"
-  echo "echo '║    2. sbctl enroll-keys ${MICROSOFT_CA:+--microsoft}     ║'"
-  echo "echo '║    3. Reboot, enable UEFI Secure Boot, set BIOS password ║'"
-fi)
 echo "╠══════════════════════════════════════════════════════════╣"
+if [[ "${ENABLE_SECUREBOOT}" == "true" ]]; then
+  echo "╠══════════════════════════════════════════════════════════╣"
+  echo "║  After first boot — SecureBoot:                          ║"
+  echo "║    1. Enable Setup Mode in BIOS                          ║"
+  if [[ "${MICROSOFT_CA}" == "true" ]]; then
+    echo "║    2. sbctl enroll-keys --microsoft                      ║"
+  else
+    echo "║    2. sbctl enroll-keys                                  ║"
+  fi
+  echo "║    3. Reboot, enable UEFI Secure Boot, set BIOS password ║"
+fi
 echo "║  Then log in as ${USERNAME} and run:                    ║"
 echo "║    bash ~/post-install.sh                                ║"
 echo "╚══════════════════════════════════════════════════════════╝"
