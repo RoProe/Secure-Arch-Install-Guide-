@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# chroot_setup.sh 
+# runs via arch-chroot in new system and gets variables passed by arch_setup.sh
 set -euo pipefail
 
 CYAN='\033[0;36m'; GREEN='\033[0;32m'; NC='\033[0m'
@@ -460,5 +462,4 @@ echo "╠═══════════════════════�
 echo "║  Then log in as ${USERNAME} and run:                    ║"
 echo "║    bash ~/post-install.sh                                ║"
 echo "╚══════════════════════════════════════════════════════════╝"
-CHROOT_EOF
 

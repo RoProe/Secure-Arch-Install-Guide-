@@ -462,8 +462,8 @@ fi
 
 info "Fetching chroot-setup.sh from GitHub..."
 curl -fsSL "https://raw.githubusercontent.com/RoProe/secure-arch-btrfs-snapper/refs/heads/main/chroot_setup.sh" \
-  -o /mnt/root/chroot-setup.sh
-chmod +x /mnt/root/chroot-setup.sh
+  -o /mnt/root/chroot_setup.sh
+chmod +x /mnt/root/chroot_setup.sh
 
 
 
@@ -490,7 +490,7 @@ arch-chroot /mnt env \
   ENABLE_SECUREBOOT="$ENABLE_SECUREBOOT" \
   MICROSOFT_CA="$MICROSOFT_CA" \
   PKGS_AUR="$PKGS_AUR" \
-  bash /root/chroot-setup.sh
+  bash /root/chroot_setup.sh
 
 
 echo ""
