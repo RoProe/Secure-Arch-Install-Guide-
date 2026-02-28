@@ -469,14 +469,33 @@ curl -fsSL "https://raw.githubusercontent.com/RoProe/secure-arch-btrfs-snapper/r
   -o /mnt/root/chroot-setup.sh
 chmod +x /mnt/root/chroot-setup.sh
 
-chmod +x /mnt/root/chroot-setup.sh
+
 
 # =============================================================================
 # PHASE 4 — enter chroot
 # =============================================================================
 success "Pre-chroot setup done. Entering chroot..."
 echo ""
-arch-chroot /mnt bash /root/chroot-setup.sh
+### all variables to chroot
+arch-chroot /mnt env \
+  USERNAME="$USERNAME" \
+  HOSTNAME="$HOSTNAME" \
+  TIMEZONE="$TIMEZONE" \
+  LOCALE="$LOCALE" \
+  KEYMAP="$KEYMAP" \
+  UCODE="$UCODE" \
+  GPU_CHOICE="$GPU_CHOICE" \
+  ALL_PKGS="$ALL_PKGS" \
+  LUKS_UUID="$LUKS_UUID" \
+  LUKS_NAME="$LUKS_NAME" \
+  RESUME_ARGS="$RESUME_ARGS" \
+  ENABLE_SWAP="$ENABLE_SWAP" \
+  ENABLE_AUTOLOGIN="$ENABLE_AUTOLOGIN" \
+  ENABLE_SECUREBOOT="$ENABLE_SECUREBOOT" \
+  MICROSOFT_CA="$MICROSOFT_CA" \
+  PKGS_AUR="$PKGS_AUR" \
+  bash /root/chroot-setup.sh
+
 
 echo ""
 success "All done!"
