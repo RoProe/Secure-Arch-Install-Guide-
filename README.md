@@ -17,7 +17,7 @@ The `00_manual_install.md` file documents the manual installation process in det
 ## TL;DR
 
 ```
-bash install.sh          # TUI guides you through everything
+bash arch_setup.sh          # TUI guides you through everything
 # reboot
 bash ~/post-install.sh   # installs yay + AUR packages + sets zsh
 # if SecureBoot: enable Setup Mode in BIOS → sbctl enroll-keys --microsoft → reboot
@@ -249,3 +249,32 @@ snapper -c root rollback
 ```
 
 Automatic pre/post snapshots from `snap-pac` appear in the boot menu on the next startup - no manual action needed for day-to-day use.
+
+## Short Summary of how the script works:
+arch_setup.sh (run from Arch ISO)
+├── Phase 0 — TUI: disk, CPU, user, timezone, locale, GPU, packages
+├── Phase 1 — Partition (EFI + LUKS), Btrfs subvolumes, optional swapfile
+├── Phase 2 — pacstrap base system, genfstab
+├── Phase 3 — curl chroot_setup.sh from GitHub
+└── Phase 4 — arch-chroot → chroot_setup.sh
+                ├── locale, hostname, user, passwords
+                ├── optional: autologin, hibernate, SecureBoot curl 
+                ├── snapper config
+                ├── install packages
+                ├── dracut + systemd-boot → builds UKI (bootx64.efi)
+                └── curl post_install.sh → /home/user/
+
+post_install.sh (run after first boot as user)
+├── install yay
+├── install AUR packages
+└── set zsh as default shell
+
+chroot_setup.sh
+    ├── locale, hostname, user, passwords
+    ├── optional: autologin, hibernate, SecureBoot
+    ├── snapper config
+    ├── install packages
+    ├── dracut config + pacman hooks
+    ├── curl dracut/99snapshot-menu/* from GitHub → /usr/lib/dracut/modules.d/
+    ├── dracut + systemd-boot → builds UKI (bootx64.efi)
+    └── curl post_install.sh from GitHub → /home/user/
