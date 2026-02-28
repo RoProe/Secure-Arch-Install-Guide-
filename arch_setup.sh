@@ -460,10 +460,6 @@ fi
 # PHASE 3 — write chroot script
 # =============================================================================
 
-##TODO: Needs to go in chroot
-echo "$PKGS_AUR" | tr ' ' '\n' | grep -v '^$' > /home/${USERNAME}/aur-packages.txt
-chown ${USERNAME}:${USERNAME} /home/${USERNAME}/aur-packages.txt
-
 info "Fetching chroot-setup.sh from GitHub..."
 curl -fsSL "https://raw.githubusercontent.com/RoProe/secure-arch-btrfs-snapper/refs/heads/main/chroot_setup.sh" \
   -o /mnt/root/chroot-setup.sh
